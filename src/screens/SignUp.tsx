@@ -1,4 +1,4 @@
-import { VStack, Image, Text, Center, Heading, ScrollView } from "native-base"
+import { VStack, Image, Text, Center, Heading, ScrollView, useToast } from "native-base"
 import BackgroundImage from "@assets/background.png"
 import { useNavigation } from "@react-navigation/native"
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -10,6 +10,9 @@ import { Button } from "@components/Button"
 
 import { useForm, Controller } from 'react-hook-form'
 import { api } from "@services/api"
+import { AppError } from "@utils/AppError"
+import { useState } from "react"
+import { useAuth } from "@hooks/useAuth"
 
 type FormDataProps = {
     name: string;
@@ -27,7 +30,12 @@ const ValidationSchemaForm = yup.object({
 
 
 export function SignUp() {
+    const { SignIn } = useAuth()
+    const [isLoading, setIsLoading] = useState(false)
+
     const navigation = useNavigation()
+    const toast = useToast()
+
     const { control, handleSubmit, formState: { errors } } = useForm<FormDataProps>({
         resolver: yupResolver(ValidationSchemaForm)
     })
@@ -36,7 +44,7 @@ export function SignUp() {
         navigation.goBack()
     }
 
-    function handleSignUp({ name, email, password }: FormDataProps) {
+    async function handleSignUp({ name, email, password }: FormDataProps) {
 
         const newUserToSignUp = {
             name: name,
@@ -44,7 +52,25 @@ export function SignUp() {
             password: password
         }
 
-        api.post("/users", newUserToSignUp)
+        try {
+            setIsLoading(true)
+            await api.post("/users", newUserToSignUp)
+            await SignIn(email, password)
+
+        } catch (error) {
+            setIsLoading(false)
+
+            const isAppErrorInstance = error instanceof AppError
+            const title = isAppErrorInstance ? error.message : "Não foi possível criar a conta. Tente mais tarde"
+
+            toast.show({
+                title,
+                placement: "top",
+                bg: "red.500"
+            })
+        }
+        
+
     }
 
     return (
@@ -67,7 +93,7 @@ export function SignUp() {
                 </Center>
 
                 <Center>
-                    <Heading  color="gray.100" fontSize="xl" mb={6} fontFamily="heading">
+                    <Heading color="gray.100" fontSize="xl" mb={6} fontFamily="heading">
                         Crie sua conta
                     </Heading>
 
@@ -132,6 +158,7 @@ export function SignUp() {
                     <Button
                         onPress={handleSubmit(handleSignUp)}
                         title="Criar e Acessar"
+                        isLoading={isLoading}
                     />
                 </Center>
 

@@ -1,15 +1,18 @@
-import { VStack, Image, Text, Center, Heading, ScrollView } from "native-base"
+import { VStack, Image, Text, Center, Heading, ScrollView, useToast } from "native-base"
 import BackgroundImage from "@assets/background.png"
 import { useNavigation } from "@react-navigation/native"
 
-import { yupResolver } from '@hookform/resolvers/yup'
-import * as yup from 'yup'
+import { yupResolver } from "@hookform/resolvers/yup"
+import * as yup from "yup"
 
 import LogoSvg from "@assets/logo.svg"
 import { Input } from "@components/Input"
 import { Button } from "@components/Button"
 import { AuthNavigationRoutesProps } from "@routes/auth.routes"
 import { Controller, useForm } from "react-hook-form"
+import { useAuth } from "@hooks/useAuth"
+import { AppError } from "@utils/AppError"
+import { useState } from "react"
 
 type FormDataProps = {
     email: string;
@@ -22,6 +25,11 @@ const ValidationSchemaForm = yup.object({
 })
 
 export function SignIn() {
+    const { SignIn } = useAuth()
+
+    const [isLoading, setIsLoading] = useState(false)
+
+    const toast = useToast()
     const navigation = useNavigation<AuthNavigationRoutesProps>()
 
     const { control, handleSubmit, formState: { errors } } = useForm<FormDataProps>({
@@ -29,11 +37,26 @@ export function SignIn() {
     })
 
     function handleNewAccount() {
-        navigation.navigate('signUp')
+        navigation.navigate("signUp")
     }
 
-    function handleSignIn(data: FormDataProps) {
+    async function handleSignIn({ email, password }: FormDataProps) {
+        try {
+            setIsLoading(true)
+            await SignIn(email, password)
+        } catch (error) {
+            const isAppError = error instanceof AppError
 
+            const title = isAppError ? error.message : "Não foi possível entrar. Tente novamente mais tarde"
+
+            setIsLoading(false)
+
+            toast.show({
+                title,
+                placement: "top",
+                bg: "red.500"
+            })
+        }
     }
 
     return (
@@ -92,6 +115,7 @@ export function SignIn() {
                     <Button
                         onPress={handleSubmit(handleSignIn)}
                         title="Acessar"
+                        isLoading={isLoading ? true : false}
                     />
                 </Center>
 
